@@ -1,3 +1,7 @@
+# Disclaimer
+
+Entirety of this project has been AI generated under guidance.
+
 # rp2350-gamepad
 
 Firmware and a desktop configurator for building your own USB game
