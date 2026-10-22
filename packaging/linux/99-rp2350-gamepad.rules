@@ -1,0 +1,8 @@
+# rp2350-gamepad: let logged-in users open the configuration serial port and
+# stop ModemManager from probing it (it sends modem commands to new serial
+# devices, which delays the configurator).
+#
+# Default USB ID ACDC:2137. If you changed the vendor/product ID, add a copy
+# of the two lines below with your IDs.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="acdc", ATTRS{idProduct}=="2137", MODE="0660", TAG+="uaccess", ENV{ID_MM_DEVICE_IGNORE}="1"
+SUBSYSTEM=="usb", ATTRS{idVendor}=="acdc", ATTRS{idProduct}=="2137", ENV{ID_MM_DEVICE_IGNORE}="1"

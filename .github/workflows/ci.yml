@@ -1,0 +1,105 @@
+# Builds and tests everything on every push and pull request.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GO_VERSION: "1.26.x"
+
+jobs:
+  firmware-tests:
+    name: Firmware core tests (host, ASan/UBSan)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - name: Build
+        run: |
+          cmake -S firmware/host -B build/host -G Ninja -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build/host
+      - name: Test (includes the protocol/layout.json freshness check)
+        run: ctest --test-dir build/host --output-on-failure
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: simulator-linux
+          path: build/host/rp2350-gamepad-sim
+          retention-days: 7
+
+  firmware:
+    name: Firmware (RP2350, reproducible)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0 # git describe needs tags
+      - name: Install build tools
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ninja-build
+      - name: Build
+        run: scripts/build-firmware.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: firmware
+          path: dist/
+          retention-days: 14
+
+  configurator-test:
+    name: Configurator tests (incl. Go <-> firmware simulator)
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: configurator/go.sum
+      - name: Install raylib build dependencies
+        run: scripts/ci-linux-deps.sh
+      - name: Build the firmware simulator
+        run: |
+          cmake -S firmware/host -B build/host -G Ninja -DCMAKE_BUILD_TYPE=Debug
+          cmake --build build/host --target rp2350-gamepad-sim
+      - name: gofmt
+        working-directory: configurator
+        run: test -z "$(gofmt -l . | tee /dev/stderr)"
+      - name: go vet
+        working-directory: configurator
+        run: go vet ./...
+      - name: go test
+        working-directory: configurator
+        env:
+          RP2350_GAMEPAD_SIM: ${{ github.workspace }}/build/host/rp2350-gamepad-sim
+        run: go test -race -count=1 ./...
+
+  configurator-build:
+    name: Configurator build (${{ matrix.name }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: linux-amd64, os: ubuntu-24.04 }
+          - { name: windows-amd64, os: windows-2025 }
+          - { name: macos, os: macos-15 }
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version: ${{ env.GO_VERSION }}
+          cache-dependency-path: configurator/go.sum
+      - if: runner.os == 'Linux'
+        run: scripts/ci-linux-deps.sh
+      - name: Build
+        shell: bash
+        working-directory: configurator
+        env:
+          CGO_ENABLED: "1"
+        run: go build -trimpath -o build/ ./cmd/rp2350-gamepad-configurator
