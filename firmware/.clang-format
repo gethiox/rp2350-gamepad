@@ -1,0 +1,35 @@
+---
+# Start with a base style that puts braces on the same line
+BasedOnStyle: WebKit
+
+# --- YOUR SPECIFIC FIXES ---
+
+# 1. Keep open parenthesis/braces on the same line
+BreakBeforeBraces: Attach
+
+# 2. Vertically align grouped variables and assignments (like Go structs/vars)
+AlignConsecutiveDeclarations: true
+AlignConsecutiveAssignments: true
+AlignConsecutiveMacros: true
+
+# --- GO-LIKE FORMATTING RULES ---
+
+# Go uses Tabs, not spaces. (Change UseTab to 'Never' if you prefer spaces)
+UseTab: Always
+TabWidth: 4
+IndentWidth: 4
+
+# Pointers attached to the type, not the variable (like Go: `int* a` instead of `int *a`)
+PointerAlignment: Left
+
+# Keeps single-line blocks (like empty functions) on one line
+AllowShortBlocksOnASingleLine: true
+AllowShortFunctionsOnASingleLine: true
+
+# Don't split empty functions into multiple lines
+KeepEmptyLinesAtTheStartOfBlocks: false
+MaxEmptyLinesToKeep: 1
+
+# Align trailing comments (great for structs and enums)
+AlignTrailingComments: true
+...

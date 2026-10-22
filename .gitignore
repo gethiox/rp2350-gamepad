@@ -1,0 +1,6 @@
+# build output
+/build/
+/dist/
+/.cache/
+/configurator/build/
+firmware/build/
